@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">AnimeX</string>
+    <string name="animex">AnimeX</string>
+    <string name="play">Play</string>
+    <string name="favorite">Favorite</string>
+    <string name="share">Share</string>
+    <string name="status">Status</string>
+    <string name="episodes">Episodes</string>
+    <string name="genres">Genres</string>
+    <string name="synopsis">Synopsis</string>
+    <string name="read_more">Read More</string>
+    <string name="show_less">Show Less</string>
+    <string name="update_available">Update available! Tap to update</string>
+    <string name="video_not_available">Video not available</string>
+    <string name="added_to_favorites">Added to favorites</string>
+    <string name="removed_from_favorites">Removed from favorites</string>
+    <string name="share_text">Check out this anime: %1$s\n\nDownload AnimeX to watch!</string>
+    <string name="error_loading">Error loading anime list</string>
+    <string name="update_successful">Update successful!</string>
+    <string name="update_failed">Update failed!</string>
+</resources>
