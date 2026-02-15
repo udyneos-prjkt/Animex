@@ -34,7 +34,7 @@ jobs:
       run: ./gradlew assembleRelease
     
     - name: Upload APK to Artifacts
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: animex-apks
         path: |
