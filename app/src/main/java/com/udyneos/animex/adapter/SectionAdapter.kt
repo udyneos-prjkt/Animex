@@ -52,7 +52,6 @@ class SectionAdapter(
             // Setup Grid RecyclerView dengan 3 kolom
             val gridLayoutManager = GridLayoutManager(itemView.context, 3)
             rvGrid.layoutManager = gridLayoutManager
-            rvGrid.setHasFixedSize(true)
             
             // Batasi hanya 9 item (3 baris x 3 kolom)
             val displayList = section.animeList.take(9)
