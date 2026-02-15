@@ -15,32 +15,54 @@ object XmlParser {
         parser.setInput(inputStream, "UTF-8")
         
         var eventType = parser.eventType
-        var currentAnime: Anime.Builder? = null
+        var id = 0
+        var title = ""
+        var description = ""
+        var genre = ""
+        var episodeCount = ""
+        var thumbnailUrl = ""
+        var videoUrl = ""
+        var status = ""
+        var rating = 0.0
+        var releaseYear = 0
+        var studio = ""
         
         while (eventType != XmlPullParser.END_DOCUMENT) {
             when (eventType) {
                 XmlPullParser.START_TAG -> {
                     when (parser.name) {
-                        "anime" -> currentAnime = Anime.Builder()
-                        "id" -> currentAnime?.id = parser.nextText().toInt()
-                        "title" -> currentAnime?.title = parser.nextText()
-                        "description" -> currentAnime?.description = parser.nextText()
-                        "genre" -> currentAnime?.genre = parser.nextText()
-                        "episode_count" -> currentAnime?.episodeCount = parser.nextText()
-                        "thumbnail_url" -> currentAnime?.thumbnailUrl = parser.nextText()
-                        "video_url" -> currentAnime?.videoUrl = parser.nextText()
-                        "status" -> currentAnime?.status = parser.nextText()
-                        "rating" -> currentAnime?.rating = parser.nextText().toDouble()
-                        "release_year" -> currentAnime?.releaseYear = parser.nextText().toInt()
-                        "studio" -> currentAnime?.studio = parser.nextText()
+                        "id" -> id = parser.nextText().toInt()
+                        "title" -> title = parser.nextText()
+                        "description" -> description = parser.nextText()
+                        "genre" -> genre = parser.nextText()
+                        "episode_count" -> episodeCount = parser.nextText()
+                        "thumbnail_url" -> thumbnailUrl = parser.nextText()
+                        "video_url" -> videoUrl = parser.nextText()
+                        "status" -> status = parser.nextText()
+                        "rating" -> rating = parser.nextText().toDouble()
+                        "release_year" -> releaseYear = parser.nextText().toInt()
+                        "studio" -> studio = parser.nextText()
                     }
                 }
                 XmlPullParser.END_TAG -> {
                     if (parser.name == "anime") {
-                        currentAnime?.let {
-                            animeList.add(it.build())
-                            currentAnime = null
-                        }
+                        animeList.add(
+                            Anime(
+                                id, title, description, genre, episodeCount,
+                                thumbnailUrl, videoUrl, status, rating, releaseYear, studio
+                            )
+                        )
+                        id = 0
+                        title = ""
+                        description = ""
+                        genre = ""
+                        episodeCount = ""
+                        thumbnailUrl = ""
+                        videoUrl = ""
+                        status = ""
+                        rating = 0.0
+                        releaseYear = 0
+                        studio = ""
                     }
                 }
             }
