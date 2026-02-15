@@ -8,39 +8,141 @@ import java.io.StringReader
 import java.net.HttpURLConnection
 import java.net.URL
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.withContext
 
 object NetworkService {
 
     private const val GITHUB_BASE_URL = "https://raw.githubusercontent.com/udyneos-prjkt/Animex-data/refs/heads/main/"
+    private const val GITHUB_API_URL = "https://api.github.com/repos/udyneos-prjkt/Animex-data/contents/"
 
     suspend fun fetchAnimeList(): List<Anime> = withContext(Dispatchers.IO) {
         val animeList = mutableListOf<Anime>()
         
-        // Coba ambil untuk anime id 1 sampai 5
-        for (animeId in 1..5) {
-            try {
-                val url = URL("${GITHUB_BASE_URL}animelist_${animeId}.xml")
-                val connection = url.openConnection() as HttpURLConnection
-                connection.connectTimeout = 5000
-                connection.readTimeout = 5000
-                connection.requestMethod = "GET"
-                
-                if (connection.responseCode == 200) {
-                    val xmlString = connection.inputStream.bufferedReader().use { it.readText() }
-                    val anime = parseAnimeFromXml(xmlString, animeId)
-                    if (anime != null) {
-                        animeList.add(anime)
+        try {
+            // 1. Dapatkan daftar semua file dari GitHub API
+            val fileList = getAnimeFileList()
+            println("📁 Found ${fileList.size} anime files")
+            
+            // 2. Download semua file secara parallel
+            val results = fileList.map { fileName ->
+                async {
+                    try {
+                        val animeId = fileName.replace("animelist_", "").replace(".xml", "").toIntOrNull()
+                        if (animeId != null) {
+                            val url = URL("${GITHUB_BASE_URL}${fileName}")
+                            val connection = url.openConnection() as HttpURLConnection
+                            connection.connectTimeout = 5000
+                            connection.readTimeout = 5000
+                            connection.requestMethod = "GET"
+                            
+                            if (connection.responseCode == 200) {
+                                val xmlString = connection.inputStream.bufferedReader().use { it.readText() }
+                                connection.disconnect()
+                                
+                                val anime = parseAnimeFromXml(xmlString, animeId)
+                                if (anime != null) {
+                                    println("✅ Loaded: ${fileName} - ${anime.title}")
+                                    anime
+                                } else {
+                                    println("❌ Failed to parse: ${fileName}")
+                                    null
+                                }
+                            } else {
+                                connection.disconnect()
+                                null
+                            }
+                        } else {
+                            null
+                        }
+                    } catch (e: Exception) {
+                        println("❌ Error loading ${fileName}: ${e.message}")
+                        null
                     }
                 }
-                connection.disconnect()
-            } catch (e: Exception) {
-                // Skip jika error
-                continue
+            }
+            
+            // 3. Kumpulkan semua hasil yang berhasil
+            animeList.addAll(results.awaitAll().filterNotNull())
+            
+        } catch (e: Exception) {
+            println("❌ Error fetching file list: ${e.message}")
+            
+            // Fallback: coba manual untuk id 1-50 jika API gagal
+            for (animeId in 1..50) {
+                try {
+                    val url = URL("${GITHUB_BASE_URL}animelist_${animeId}.xml")
+                    val connection = url.openConnection() as HttpURLConnection
+                    connection.connectTimeout = 3000
+                    connection.readTimeout = 3000
+                    connection.requestMethod = "GET"
+                    
+                    if (connection.responseCode == 200) {
+                        val xmlString = connection.inputStream.bufferedReader().use { it.readText() }
+                        val anime = parseAnimeFromXml(xmlString, animeId)
+                        if (anime != null) {
+                            animeList.add(anime)
+                            println("✅ Loaded anime ID $animeId: ${anime.title}")
+                        }
+                    } else {
+                        connection.disconnect()
+                        if (animeId > 10) break // Stop jika sudah lewat id 10 dan tidak ditemukan
+                    }
+                    connection.disconnect()
+                } catch (e: Exception) {
+                    if (animeId > 10) break
+                }
             }
         }
         
-        return@withContext animeList
+        println("📊 Total anime loaded: ${animeList.size}")
+        return@withContext animeList.sortedBy { it.id }
+    }
+    
+    private suspend fun getAnimeFileList(): List<String> = withContext(Dispatchers.IO) {
+        val fileList = mutableListOf<String>()
+        
+        try {
+            val url = URL(GITHUB_API_URL)
+            val connection = url.openConnection() as HttpURLConnection
+            connection.connectTimeout = 5000
+            connection.readTimeout = 5000
+            connection.requestMethod = "GET"
+            connection.setRequestProperty("Accept", "application/vnd.github.v3+json")
+            
+            if (connection.responseCode == 200) {
+                val jsonResponse = connection.inputStream.bufferedReader().use { it.readText() }
+                
+                // Parse JSON sederhana untuk mendapatkan nama file
+                val pattern = "\"name\":\"(animelist_\\d+\\.xml)\"".toRegex()
+                val matches = pattern.findAll(jsonResponse)
+                
+                matches.forEach { matchResult ->
+                    matchResult.groupValues.getOrNull(1)?.let { fileName ->
+                        fileList.add(fileName)
+                    }
+                }
+                
+                println("📁 Found ${fileList.size} files via GitHub API")
+            } else {
+                println("⚠️ GitHub API returned ${connection.responseCode}")
+            }
+            connection.disconnect()
+        } catch (e: Exception) {
+            println("⚠️ GitHub API error: ${e.message}")
+        }
+        
+        // Jika API gagal, gunakan range manual
+        if (fileList.isEmpty()) {
+            println("📁 Using fallback: scanning IDs 1-50")
+            for (id in 1..50) {
+                fileList.add("animelist_${id}.xml")
+            }
+        }
+        
+        return@withContext fileList
     }
     
     private fun parseAnimeFromXml(xmlString: String, animeId: Int): Anime? {
@@ -69,7 +171,10 @@ object NetworkService {
                         "description" -> if (foundAnime) description = parser.nextText() ?: ""
                         "genre" -> if (foundAnime) genre = parser.nextText() ?: ""
                         "episode_count" -> if (foundAnime) episodeCount = parser.nextText() ?: ""
-                        "thumbnail_url" -> if (foundAnime) thumbnailUrl = parser.nextText() ?: ""
+                        "thumbnail_url" -> if (foundAnime) {
+                            thumbnailUrl = parser.nextText() ?: ""
+                            thumbnailUrl = thumbnailUrl.trim()
+                        }
                         "status" -> if (foundAnime) status = parser.nextText() ?: ""
                         "rating" -> if (foundAnime) {
                             try {
@@ -109,7 +214,6 @@ object NetworkService {
                 null
             }
         } catch (e: Exception) {
-            e.printStackTrace()
             null
         }
     }
@@ -153,7 +257,6 @@ object NetworkService {
                                 }
                                 "video_url" -> if (inEpisode) {
                                     videoUrl = parser.nextText() ?: ""
-                                    // Bersihkan URL dari karakter < dan >
                                     videoUrl = videoUrl.replace("<", "").replace(">", "").trim()
                                 }
                             }
@@ -180,8 +283,8 @@ object NetworkService {
             }
             connection.disconnect()
         } catch (e: Exception) {
-            e.printStackTrace()
+            println("❌ Error loading episodes for anime ID $animeId: ${e.message}")
         }
-        return@withContext episodeList
+        return@withContext episodeList.sortedBy { it.number }
     }
 }
