@@ -3,7 +3,6 @@
     package="com.udyneos.animex">
 
     <uses-permission android:name="android.permission.INTERNET" />
-    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     
     <application
         android:allowBackup="true"
@@ -33,7 +32,7 @@
         <activity
             android:name=".VideoPlayerActivity"
             android:exported="false"
-            android:configChanges="orientation|screenSize|keyboardHidden|keyboard"
+            android:configChanges="orientation|screenSize"
             android:screenOrientation="landscape" />
             
     </application>

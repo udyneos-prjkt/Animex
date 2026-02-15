@@ -1,5 +1,6 @@
 package com.udyneos.animex
 
+import android.content.Intent
 import android.os.Bundle
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
@@ -13,7 +14,6 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import java.io.InputStream
 
 class MainActivity : AppCompatActivity() {
     
@@ -35,7 +35,9 @@ class MainActivity : AppCompatActivity() {
     
     private fun setupRecyclerView() {
         animeAdapter = AnimeAdapter { anime ->
-            Toast.makeText(this, "Clicked: ${anime.title}", Toast.LENGTH_SHORT).show()
+            val intent = Intent(this, AnimeDetailActivity::class.java)
+            intent.putExtra("anime_data", anime)
+            startActivity(intent)
         }
         
         recyclerView.layoutManager = LinearLayoutManager(this)
@@ -45,7 +47,7 @@ class MainActivity : AppCompatActivity() {
     private fun loadAnimeList() {
         CoroutineScope(Dispatchers.IO).launch {
             try {
-                val inputStream: InputStream = assets.open("anime_list.xml")
+                val inputStream = assets.open("anime_list.xml")
                 val animeList = XmlParser.parseAnimeList(inputStream)
                 
                 withContext(Dispatchers.Main) {
