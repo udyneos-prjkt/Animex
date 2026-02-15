@@ -2,7 +2,7 @@ name: Build AnimeX APK
 
 on:
   release:
-    types: [published,created,edited]
+    types: [created]
   
 jobs:
   build:
