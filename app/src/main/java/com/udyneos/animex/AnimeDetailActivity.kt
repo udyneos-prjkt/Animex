@@ -4,6 +4,7 @@ import android.content.Intent
 import android.os.Bundle
 import android.widget.TextView
 import android.widget.Toast
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
@@ -31,6 +32,8 @@ class AnimeDetailActivity : AppCompatActivity() {
     private lateinit var rvEpisodes: RecyclerView
     private lateinit var episodeAdapter: EpisodeAdapter
     private var currentAnime: Anime? = null
+    private var episodeList = listOf<Episode>()
+    private var backPressedTime = 0L
     
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -48,8 +51,12 @@ class AnimeDetailActivity : AppCompatActivity() {
         btnPlay = findViewById(R.id.btnPlay)
         rvEpisodes = findViewById(R.id.rvEpisodes)
         
-        // Setup toolbar
-        findViewById<androidx.appcompat.widget.Toolbar>(R.id.toolbar).setNavigationOnClickListener {
+        // Setup toolbar dengan back button
+        val toolbar = findViewById<androidx.appcompat.widget.Toolbar>(R.id.toolbar)
+        setSupportActionBar(toolbar)
+        supportActionBar?.setDisplayHomeAsUpEnabled(true)
+        supportActionBar?.setDisplayShowHomeEnabled(true)
+        toolbar.setNavigationOnClickListener {
             onBackPressed()
         }
         
@@ -86,6 +93,7 @@ class AnimeDetailActivity : AppCompatActivity() {
             val intent = Intent(this, VideoPlayerActivity::class.java)
             intent.putExtra("video_url", episode.videoUrl)
             intent.putExtra("episode_title", episode.title)
+            intent.putExtra("anime_title", currentAnime?.title)
             startActivity(intent)
         }
         
@@ -98,18 +106,15 @@ class AnimeDetailActivity : AppCompatActivity() {
             CoroutineScope(Dispatchers.IO).launch {
                 try {
                     val episodes = NetworkService.fetchEpisodes(anime.id)
+                    episodeList = episodes
                     
                     withContext(Dispatchers.Main) {
                         if (episodes.isNotEmpty()) {
                             episodeAdapter.submitList(episodes)
-                        } else {
-                            Toast.makeText(this@AnimeDetailActivity, "No episodes found", Toast.LENGTH_SHORT).show()
                         }
                     }
                 } catch (e: Exception) {
-                    withContext(Dispatchers.Main) {
-                        Toast.makeText(this@AnimeDetailActivity, "Error loading episodes: ${e.message}", Toast.LENGTH_SHORT).show()
-                    }
+                    e.printStackTrace()
                 }
             }
         }
@@ -117,12 +122,27 @@ class AnimeDetailActivity : AppCompatActivity() {
     
     private fun setupClickListeners() {
         btnPlay.setOnClickListener {
-            currentAnime?.let { anime ->
+            if (episodeList.isNotEmpty()) {
+                // Play episode 1
+                val firstEpisode = episodeList[0]
                 val intent = Intent(this, VideoPlayerActivity::class.java)
-                intent.putExtra("video_url", anime.videoUrl)
-                intent.putExtra("episode_title", "${anime.title} - Episode 1")
+                intent.putExtra("video_url", firstEpisode.videoUrl)
+                intent.putExtra("episode_title", firstEpisode.title)
+                intent.putExtra("anime_title", currentAnime?.title)
                 startActivity(intent)
+            } else {
+                Toast.makeText(this, "No episodes available", Toast.LENGTH_SHORT).show()
             }
+        }
+    }
+    
+    override fun onBackPressed() {
+        if (backPressedTime + 2000 > System.currentTimeMillis()) {
+            super.onBackPressed()
+            finishAffinity()
+        } else {
+            Toast.makeText(this, "Tekan sekali lagi untuk keluar", Toast.LENGTH_SHORT).show()
+            backPressedTime = System.currentTimeMillis()
         }
     }
 }
