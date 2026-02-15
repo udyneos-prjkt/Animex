@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">AnimeX</string>
+    <string name="play">Play</string>
+    <string name="favorite">Favorite</string>
+    <string name="share">Share</string>
+    <string name="status">Status</string>
+    <string name="episodes">Episodes</string>
+    <string name="genres">Genres</string>
+    <string name="synopsis">Synopsis</string>
+    <string name="read_more">Read More</string>
+    <string name="show_less">Show Less</string>
+</resources>

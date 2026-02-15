@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="monet_primary">#9C4DFF</color>
+    <color name="monet_secondary">#6C47FF</color>
+    <color name="monet_tertiary">#FF6B4A</color>
+    <color name="monet_surface">#1C1B1E</color>
+    <color name="monet_background">#121212</color>
+    <color name="monet_error">#FF5449</color>
+    <color name="monet_on_primary">#FFFFFF</color>
+    <color name="monet_on_surface">#E6E1E5</color>
+    <color name="monet_outline">#938F99</color>
+    <color name="card_bg">#2C2B2E</color>
+    <color name="rating_star">#FFB800</color>
+</resources>

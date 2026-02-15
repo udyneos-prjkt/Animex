@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<anime_list>
+    <anime>
+        <id>1</id>
+        <title>One Piece</title>
+        <description>Petualangan Monkey D. Luffy mencari One Piece</description>
+        <genre>Action, Adventure</genre>
+        <episode_count>1000+</episode_count>
+        <thumbnail_url>https://example.com/onepiece.jpg</thumbnail_url>
+        <video_url>https://example.com/onepiece.mp4</video_url>
+        <status>Ongoing</status>
+        <rating>4.8</rating>
+        <release_year>1999</release_year>
+        <studio>Toei Animation</studio>
+    </anime>
+    <anime>
+        <id>2</id>
+        <title>Naruto</title>
+        <description>Kisah ninja muda menjadi Hokage</description>
+        <genre>Action, Adventure</genre>
+        <episode_count>720</episode_count>
+        <thumbnail_url>https://example.com/naruto.jpg</thumbnail_url>
+        <video_url>https://example.com/naruto.mp4</video_url>
+        <status>Completed</status>
+        <rating>4.7</rating>
+        <release_year>2002</release_year>
+        <studio>Pierrot</studio>
+    </anime>
+</anime_list>

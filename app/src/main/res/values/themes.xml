@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.AnimeX" parent="Theme.Material3.DayNight.NoActionBar">
+        <item name="colorPrimary">@color/monet_primary</item>
+        <item name="colorOnPrimary">@color/monet_on_primary</item>
+        <item name="colorSecondary">@color/monet_secondary</item>
+        <item name="colorTertiary">@color/monet_tertiary</item>
+        <item name="android:colorBackground">@color/monet_background</item>
+        <item name="colorSurface">@color/monet_surface</item>
+        <item name="colorError">@color/monet_error</item>
+        <item name="android:windowBackground">@color/monet_background</item>
+        <item name="materialButtonStyle">@style/Widget.AnimeX.Button.Circle</item>
+    </style>
+
+    <style name="Widget.AnimeX.Button.Circle" parent="Widget.Material3.Button">
+        <item name="cornerRadius">50dp</item>
+        <item name="android:insetTop">0dp</item>
+        <item name="android:insetBottom">0dp</item>
+    </style>
+</resources>
