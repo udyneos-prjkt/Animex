@@ -1,7 +1,9 @@
 package com.udyneos.animex.network
 
+import android.content.Context
 import com.udyneos.animex.model.Anime
 import com.udyneos.animex.model.Episode
+import com.udyneos.animex.utils.CacheManager
 import org.xmlpull.v1.XmlPullParser
 import org.xmlpull.v1.XmlPullParserFactory
 import java.io.StringReader
@@ -15,18 +17,35 @@ import kotlinx.coroutines.withContext
 object NetworkService {
 
     private const val GITHUB_BASE_URL = "https://raw.githubusercontent.com/udyneos-prjkt/Animex-data/refs/heads/main/"
+    private var context: Context? = null
 
-    suspend fun fetchAnimeList(): List<Anime> = withContext(Dispatchers.IO) {
+    fun init(context: Context) {
+        this.context = context.applicationContext
+    }
+
+    suspend fun fetchAnimeList(forceRefresh: Boolean = false): List<Anime> = withContext(Dispatchers.IO) {
+        val ctx = context ?: throw IllegalStateException("NetworkService not initialized")
+        
+        // Coba load dari cache dulu (kecuali force refresh)
+        if (!forceRefresh) {
+            val cached = CacheManager.loadAnimeList(ctx)
+            if (cached != null) {
+                println("📦 Using cached anime list")
+                return@withContext cached
+            }
+        }
+        
+        println("🌐 Fetching anime list from GitHub...")
         val animeList = mutableListOf<Anime>()
         
         try {
             // Coba ambil untuk anime id 1 sampai 50
-            for (animeId in 1..50) {
+            for (animeId in 1..20000) {
                 try {
                     val url = URL("${GITHUB_BASE_URL}animelist_${animeId}.xml")
                     val connection = url.openConnection() as HttpURLConnection
-                    connection.connectTimeout = 3000
-                    connection.readTimeout = 3000
+                    connection.connectTimeout = 1000
+                    connection.readTimeout = 1000
                     connection.requestMethod = "GET"
                     
                     if (connection.responseCode == 200) {
@@ -39,13 +58,19 @@ object NetworkService {
                     } else {
                         connection.disconnect()
                         // Jika 3 kali berturut-turut tidak ditemukan, berhenti
-                        if (animeId > 10 && animeList.isEmpty()) break
+                        if (animeId > 7 && animeList.isEmpty()) break
                     }
                     connection.disconnect()
                 } catch (e: Exception) {
                     println("⚠️ Error loading anime ID $animeId: ${e.message}")
                 }
             }
+            
+            // Simpan ke cache
+            if (animeList.isNotEmpty()) {
+                CacheManager.saveAnimeList(ctx, animeList)
+            }
+            
         } catch (e: Exception) {
             println("❌ Error: ${e.message}")
         }
@@ -127,8 +152,21 @@ object NetworkService {
         }
     }
 
-    suspend fun fetchEpisodes(animeId: Int): List<Episode> = withContext(Dispatchers.IO) {
+    suspend fun fetchEpisodes(animeId: Int, forceRefresh: Boolean = false): List<Episode> = withContext(Dispatchers.IO) {
+        val ctx = context ?: throw IllegalStateException("NetworkService not initialized")
+        
+        // Coba load dari cache dulu (kecuali force refresh)
+        if (!forceRefresh) {
+            val cached = CacheManager.loadEpisodes(ctx, animeId)
+            if (cached != null) {
+                println("📦 Using cached episodes for anime $animeId")
+                return@withContext cached
+            }
+        }
+        
+        println("🌐 Fetching episodes for anime $animeId from GitHub...")
         val episodeList = mutableListOf<Episode>()
+        
         try {
             val url = URL("${GITHUB_BASE_URL}animelist_${animeId}.xml")
             val connection = url.openConnection() as HttpURLConnection
@@ -177,7 +215,6 @@ object NetworkService {
                         }
                         XmlPullParser.END_TAG -> {
                             if (parser.name == "episode" && inEpisode && epsId > 0 && videoUrl.isNotEmpty()) {
-                                // Gunakan epstitle dari XML jika ada, jika tidak buat default
                                 val finalTitle = if (episodeTitle.isNotEmpty()) {
                                     episodeTitle
                                 } else {
@@ -201,12 +238,19 @@ object NetworkService {
                     }
                     eventType = parser.next()
                 }
+                
+                // Simpan ke cache
+                if (episodeList.isNotEmpty()) {
+                    CacheManager.saveEpisodes(ctx, animeId, episodeList)
+                }
+                
                 println("✅ Loaded ${episodeList.size} episodes for anime ID $animeId")
             }
             connection.disconnect()
         } catch (e: Exception) {
             println("❌ Error loading episodes for anime ID $animeId: ${e.message}")
         }
+        
         return@withContext episodeList.sortedBy { it.number }
     }
 }

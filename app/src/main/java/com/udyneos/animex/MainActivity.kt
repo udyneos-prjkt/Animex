@@ -2,14 +2,17 @@ package com.udyneos.animex
 
 import android.content.Intent
 import android.os.Bundle
+import android.view.View
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.progressindicator.LinearProgressIndicator
+import com.google.android.material.button.MaterialButton
 import com.udyneos.animex.adapter.SectionAdapter
 import com.udyneos.animex.model.Anime
 import com.udyneos.animex.network.NetworkService
+import com.udyneos.animex.utils.CacheManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -19,6 +22,7 @@ class MainActivity : AppCompatActivity() {
 
     private lateinit var recyclerView: RecyclerView
     private lateinit var progressIndicator: LinearProgressIndicator
+    private lateinit var btnRefresh: MaterialButton
     private lateinit var sectionAdapter: SectionAdapter
     private var allAnime = listOf<Anime>()
     private var backPressedTime = 0L
@@ -29,10 +33,21 @@ class MainActivity : AppCompatActivity() {
 
         recyclerView = findViewById(R.id.recyclerView)
         progressIndicator = findViewById(R.id.progressIndicator)
+        btnRefresh = findViewById(R.id.btnRefresh)
+
+        // Inisialisasi NetworkService dengan context
+        NetworkService.init(this)
 
         setupToolbar()
         setupRecyclerView()
-        fetchAnimeFromGithub()
+        setupRefreshButton()
+        
+        // Bersihkan cache expired
+        CoroutineScope(Dispatchers.IO).launch {
+            CacheManager.clearExpiredCache(this@MainActivity)
+        }
+        
+        loadAnimeData()
     }
 
     private fun setupToolbar() {
@@ -73,21 +88,44 @@ class MainActivity : AppCompatActivity() {
         recyclerView.adapter = sectionAdapter
     }
 
-    private fun fetchAnimeFromGithub() {
-        progressIndicator.visibility = android.view.View.VISIBLE
+    private fun setupRefreshButton() {
+        btnRefresh.setOnClickListener {
+            // Force refresh dari GitHub
+            loadAnimeData(forceRefresh = true)
+        }
+    }
+
+    private fun showLoading(show: Boolean) {
+        if (show) {
+            progressIndicator.visibility = View.VISIBLE
+            recyclerView.visibility = View.GONE
+        } else {
+            progressIndicator.visibility = View.GONE
+            recyclerView.visibility = View.VISIBLE
+        }
+    }
+
+    private fun loadAnimeData(forceRefresh: Boolean = false) {
+        showLoading(true)
+        if (forceRefresh) {
+            Toast.makeText(this, "Refreshing data from GitHub...", Toast.LENGTH_SHORT).show()
+        }
 
         CoroutineScope(Dispatchers.IO).launch {
             try {
-                val animeList = NetworkService.fetchAnimeList()
+                val animeList = NetworkService.fetchAnimeList(forceRefresh)
                 allAnime = animeList.sortedByDescending { it.rating }
 
                 withContext(Dispatchers.Main) {
-                    progressIndicator.visibility = android.view.View.GONE
+                    showLoading(false)
                     setupSections(animeList)
+                    
+                    val source = if (forceRefresh) "GitHub" else "cache"
+                    Toast.makeText(this@MainActivity, "Loaded ${animeList.size} anime from $source", Toast.LENGTH_SHORT).show()
                 }
             } catch (e: Exception) {
                 withContext(Dispatchers.Main) {
-                    progressIndicator.visibility = android.view.View.GONE
+                    showLoading(false)
                     Toast.makeText(this@MainActivity, "Error: ${e.message}", Toast.LENGTH_LONG).show()
                 }
             }
