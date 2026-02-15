@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="utf-8"?>
+<anime_list version="1.0" last_update="2024-01-15">
+    <anime>
+        <id>1</id>
+        <title>One Piece</title>
+        <description>Petualangan Monkey D. Luffy mencari harta karun One Piece</description>
+        <genre>Action, Adventure, Comedy</genre>
+        <episode_count>1000+</episode_count>
+        <thumbnail_url>https://example.com/onepiece.jpg</thumbnail_url>
+        <video_url>https://example.com/onepiece/ep1.mp4</video_url>
+        <status>Ongoing</status>
+        <rating>4.8</rating>
+        <release_year>1999</release_year>
+        <studio>Toei Animation</studio>
+    </anime>
+    
+    <anime>
+        <id>2</id>
+        <title>Naruto</title>
+        <description>Kisah ninja muda yang bercita-cita menjadi Hokage</description>
+        <genre>Action, Adventure, Fantasy</genre>
+        <episode_count>720</episode_count>
+        <thumbnail_url>https://example.com/naruto.jpg</thumbnail_url>
+        <video_url>https://example.com/naruto/ep1.mp4</video_url>
+        <status>Completed</status>
+        <rating>4.7</rating>
+        <release_year>2002</release_year>
+        <studio>Pierrot</studio>
+    </anime>
+    
+    <anime>
+        <id>3</id>
+        <title>Attack on Titan</title>
+        <description>Perjuangan manusia melawan para Titan</description>
+        <genre>Action, Drama, Fantasy</genre>
+        <episode_count>88</episode_count>
+        <thumbnail_url>https://example.com/aot.jpg</thumbnail_url>
+        <video_url>https://example.com/aot/ep1.mp4</video_url>
+        <status>Completed</status>
+        <rating>4.9</rating>
+        <release_year>2013</release_year>
+        <studio>Wit Studio, MAPPA</studio>
+    </anime>
+    
+    <anime>
+        <id>4</id>
+        <title>Demon Slayer</title>
+        <description>Petualangan Tanjiro membasmi iblis</description>
+        <genre>Action, Supernatural</genre>
+        <episode_count>44</episode_count>
+        <thumbnail_url>https://example.com/demonslayer.jpg</thumbnail_url>
+        <video_url>https://example.com/demonslayer/ep1.mp4</video_url>
+        <status>Ongoing</status>
+        <rating>4.9</rating>
+        <release_year>2019</release_year>
+        <studio>Ufotable</studio>
+    </anime>
+</anime_list>
