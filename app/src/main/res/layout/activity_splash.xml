@@ -26,6 +26,27 @@
             android:src="@drawable/ic_animex_logo"
             android:layout_marginBottom="32dp" />
 
+        <!-- Loading Text -->
+        <TextView
+            android:id="@+id/tvLoading"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Menyiapkan aplikasi..."
+            android:textColor="@color/text_primary"
+            android:textSize="16sp"
+            android:textStyle="bold"
+            android:layout_marginBottom="8dp" />
+
+        <!-- Status Text -->
+        <TextView
+            android:id="@+id/tvStatus"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Menghubungi server..."
+            android:textColor="@color/text_secondary"
+            android:textSize="12sp"
+            android:layout_marginBottom="24dp" />
+
         <!-- Progress Bar -->
         <com.google.android.material.progressindicator.LinearProgressIndicator
             android:id="@+id/progressIndicator"
@@ -35,17 +56,7 @@
             android:progress="0"
             app:indicatorColor="@color/accent_purple"
             app:trackColor="@color/dark_secondary"
-            app:trackThickness="4dp"
-            android:layout_marginBottom="16dp" />
-
-        <!-- Loading Text -->
-        <TextView
-            android:id="@+id/tvLoading"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Menyiapkan aplikasi..."
-            android:textColor="@color/text_secondary"
-            android:textSize="14sp" />
+            app:trackThickness="4dp" />
 
     </LinearLayout>
 

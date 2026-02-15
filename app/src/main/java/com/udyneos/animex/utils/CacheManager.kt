@@ -8,9 +8,8 @@ import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.ObjectInputStream
 import java.io.ObjectOutputStream
-import java.security.MessageDigest
-import kotlin.io.encoding.Base64
-import kotlin.io.encoding.ExperimentalEncodingApi
+import java.text.CharacterIterator
+import java.text.StringCharacterIterator
 
 object CacheManager {
     
@@ -22,6 +21,50 @@ object CacheManager {
         val timestamp: Long,
         val data: T
     )
+    
+    // Dapatkan informasi cache
+    suspend fun getCacheInfo(context: Context): Pair<String, Long> = withContext(Dispatchers.IO) {
+        try {
+            val cacheDir = context.cacheDir
+            var totalSize = 0L
+            var latestTimestamp = 0L
+            
+            cacheDir.listFiles()?.forEach { file ->
+                totalSize += file.length()
+                if (file.lastModified() > latestTimestamp) {
+                    latestTimestamp = file.lastModified()
+                }
+            }
+            
+            val sizeStr = if (totalSize > 0) {
+                humanReadableByteCount(totalSize)
+            } else {
+                "No cache"
+            }
+            
+            return@withContext Pair(sizeStr, latestTimestamp)
+        } catch (e: Exception) {
+            return@withContext Pair("Error", 0L)
+        }
+    }
+    
+    // Konversi byte ke format human readable
+    private fun humanReadableByteCount(bytes: Long): String {
+        if (-1000 < bytes && bytes < 1000) {
+            return "$bytes B"
+        }
+        val ci: CharacterIterator = StringCharacterIterator("kMGTPE")
+        var bytes = bytes
+        var i = 40
+        while (i >= 0 && bytes > -1000) {
+            bytes = bytes shr 10
+            ci.next()
+            i -= 10
+        }
+        bytes *= 1000
+        bytes = bytes shr 10
+        return String.format("%.1f %cB", bytes / 1000.0, ci.current())
+    }
     
     // Cache untuk daftar anime
     suspend fun saveAnimeList(context: Context, animeList: List<Anime>) {

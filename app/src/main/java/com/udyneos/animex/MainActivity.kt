@@ -2,6 +2,8 @@ package com.udyneos.animex
 
 import android.content.Intent
 import android.os.Bundle
+import android.view.Menu
+import android.view.MenuItem
 import android.view.View
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
@@ -50,6 +52,26 @@ class MainActivity : AppCompatActivity() {
         loadAnimeData()
     }
 
+    override fun onCreateOptionsMenu(menu: Menu): Boolean {
+        menuInflater.inflate(R.menu.main_menu, menu)
+        return true
+    }
+
+    override fun onOptionsItemSelected(item: MenuItem): Boolean {
+        return when (item.itemId) {
+            R.id.action_refresh -> {
+                loadAnimeData(forceRefresh = true)
+                true
+            }
+            R.id.action_settings -> {
+                val intent = Intent(this, SettingsActivity::class.java)
+                startActivity(intent)
+                true
+            }
+            else -> super.onOptionsItemSelected(item)
+        }
+    }
+
     private fun setupToolbar() {
         val toolbar = findViewById<androidx.appcompat.widget.Toolbar>(R.id.toolbar)
         setSupportActionBar(toolbar)
@@ -90,7 +112,6 @@ class MainActivity : AppCompatActivity() {
 
     private fun setupRefreshButton() {
         btnRefresh.setOnClickListener {
-            // Force refresh dari GitHub
             loadAnimeData(forceRefresh = true)
         }
     }
@@ -133,11 +154,10 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun setupSections(animeList: List<Anime>) {
-        // Kategorikan anime
         val newAnime = animeList
             .filter { it.releaseYear >= 2023 }
             .sortedByDescending { it.rating }
-            .take(9) // 3 baris x 3 kolom
+            .take(9)
 
         val popularAnime = animeList
             .filter { it.rating >= 8.5 }
