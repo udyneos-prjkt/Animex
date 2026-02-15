@@ -37,7 +37,6 @@
                 android:layout_height="220dp"
                 android:background="@color/monet_surface">
 
-                <!-- Thumbnail background dengan blur overlay -->
                 <ImageView
                     android:id="@+id/ivThumbnailBackground"
                     android:layout_width="match_parent"
@@ -45,13 +44,11 @@
                     android:scaleType="centerCrop"
                     android:alpha="0.5" />
 
-                <!-- Gradient overlay untuk readability -->
                 <View
                     android:layout_width="match_parent"
                     android:layout_height="match_parent"
                     android:background="@drawable/gradient_overlay" />
 
-                <!-- Anime info di atas background -->
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
@@ -129,14 +126,13 @@
                 </LinearLayout>
             </FrameLayout>
 
-            <!-- Content dengan background putih transparan -->
+            <!-- Content -->
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="vertical"
                 android:padding="16dp"
-                android:background="@color/monet_surface"
-                app:layout_behavior="@string/appbar_scrolling_view_behavior">
+                android:background="@color/monet_surface">
 
                 <!-- Status & Episode Count -->
                 <LinearLayout
@@ -176,6 +172,40 @@
                                 android:textSize="16sp"
                                 android:textStyle="bold"
                                 android:layout_marginTop="4dp" />
+                        </LinearLayout>
+                    </com.google.android.material.card.MaterialCardView>
+
+                    <com.google.android.material.card.MaterialCardView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:layout_marginStart="8dp"
+                        app:cardBackgroundColor="@color/card_bg"
+                        app:cardCornerRadius="12dp"
+                        app:cardElevation="2dp">
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="vertical"
+                            android:gravity="center"
+                            android:padding="12dp">
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="Episodes"
+                                android:textColor="@color/monet_outline"
+                                android:textSize="12sp" />
+
+                            <TextView
+                                android:id="@+id/tvEpisodeCount"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:textColor="@color/monet_on_surface"
+                                android:textSize="16sp"
+                                android:textStyle="bold"
+                     		android:layout_marginTop="4dp" />
                         </LinearLayout>
                     </com.google.android.material.card.MaterialCardView>
 
@@ -272,12 +302,35 @@
                     android:textStyle="bold"
                     android:layout_marginBottom="12dp" />
 
+                <!-- Progress Bar -->
+                <com.google.android.material.progressindicator.CircularProgressIndicator
+                    android:id="@+id/progressBar"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="center"
+                    android:visibility="gone"
+                    app:indicatorColor="@color/monet_primary"
+                    app:trackColor="@color/monet_surface" />
+
                 <!-- Episodes RecyclerView -->
                 <androidx.recyclerview.widget.RecyclerView
                     android:id="@+id/rvEpisodes"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:nestedScrollingEnabled="false" />
+
+                <!-- Load More Button -->
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btnLoadMore"
+                    android:layout_width="match_parent"
+                    android:layout_height="48dp"
+                    android:text="Load More Episodes"
+                    android:textAllCaps="false"
+                    android:textSize="14sp"
+                    android:visibility="gone"
+                    style="@style/Widget.Material3.Button.OutlinedButton"
+                    android:layout_marginTop="8dp"
+                    android:layout_marginBottom="16dp" />
 
             </LinearLayout>
         </LinearLayout>
