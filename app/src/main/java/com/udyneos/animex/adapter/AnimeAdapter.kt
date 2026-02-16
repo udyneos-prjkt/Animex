@@ -51,7 +51,7 @@ class AnimeAdapter(
             tvEpisode.text = anime.episodeCount
             ratingChip.text = String.format("%.1f", anime.rating)
             
-            // Load thumbnail dengan Glide
+            // Load thumbnail dengan Glide (optimasi memory)
             if (anime.thumbnailUrl.isNotEmpty()) {
                 Glide.with(itemView.context)
                     .load(anime.thumbnailUrl)
@@ -61,6 +61,7 @@ class AnimeAdapter(
                             .error(R.drawable.error_anime)
                             .diskCacheStrategy(DiskCacheStrategy.ALL)
                             .centerCrop()
+                            .override(200, 260) // Resize untuk hemat memory
                     )
                     .into(ivThumbnail)
             } else {

@@ -1,256 +1,190 @@
 package com.udyneos.animex.network
 
 import android.content.Context
+import android.util.Log
 import com.udyneos.animex.model.Anime
 import com.udyneos.animex.model.Episode
-import com.udyneos.animex.utils.CacheManager
+import com.udyneos.animex.utils.AssetManager
+import com.udyneos.animex.utils.SimpleCache
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import org.xmlpull.v1.XmlPullParser
 import org.xmlpull.v1.XmlPullParserFactory
 import java.io.StringReader
 import java.net.HttpURLConnection
 import java.net.URL
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.async
-import kotlinx.coroutines.awaitAll
-import kotlinx.coroutines.withContext
+import java.net.URLEncoder
 
 object NetworkService {
 
-    private const val GITHUB_BASE_URL = "https://raw.githubusercontent.com/udyneos-prjkt/Animex-data/refs/heads/main/"
+    private const val GITHUB_RAW_URL = "https://raw.githubusercontent.com/udyneos-prjkt/Animex-data/main/"
+    private const val TAG = "NetworkService"
+    
     private var context: Context? = null
 
     fun init(context: Context) {
-        this.context = context.applicationContext
+        this.context = context
+        SimpleCache.init(context)
     }
 
-    suspend fun fetchAnimeList(forceRefresh: Boolean = false): List<Anime> = withContext(Dispatchers.IO) {
-        val ctx = context ?: throw IllegalStateException("NetworkService not initialized")
+    // Load anime list dari assets (anime.json)
+    suspend fun loadAnimeList(forceRefresh: Boolean = false): List<Anime> = withContext(Dispatchers.IO) {
+        val ctx = context ?: return@withContext emptyList()
         
-        // Coba load dari cache dulu (kecuali force refresh)
-        if (!forceRefresh) {
-            val cached = CacheManager.loadAnimeList(ctx)
-            if (cached != null) {
-                println("📦 Using cached anime list")
+        // Cek cache dulu
+        if (!forceRefresh && SimpleCache.hasCache()) {
+            val cached = SimpleCache.getAnimeList()
+            if (cached.isNotEmpty()) {
+                Log.d(TAG, "📦 Using cache: ${cached.size} anime")
                 return@withContext cached
             }
         }
         
-        println("🌐 Fetching anime list from GitHub...")
-        val animeList = mutableListOf<Anime>()
+        Log.d(TAG, "📖 Loading anime from assets...")
         
         try {
-            // Coba ambil untuk anime id 1 sampai 50
-            for (animeId in 1..20000) {
-                try {
-                    val url = URL("${GITHUB_BASE_URL}animelist_${animeId}.xml")
-                    val connection = url.openConnection() as HttpURLConnection
-                    connection.connectTimeout = 1000
-                    connection.readTimeout = 1000
-                    connection.requestMethod = "GET"
-                    
-                    if (connection.responseCode == 200) {
-                        val xmlString = connection.inputStream.bufferedReader().use { it.readText() }
-                        val anime = parseAnimeFromXml(xmlString, animeId)
-                        if (anime != null) {
-                            animeList.add(anime)
-                            println("✅ Loaded anime ID $animeId: ${anime.title}")
-                        }
-                    } else {
-                        connection.disconnect()
-                        // Jika 3 kali berturut-turut tidak ditemukan, berhenti
-                        if (animeId > 7 && animeList.isEmpty()) break
-                    }
-                    connection.disconnect()
-                } catch (e: Exception) {
-                    println("⚠️ Error loading anime ID $animeId: ${e.message}")
-                }
-            }
+            // Load dari assets
+            val animeList = AssetManager.loadAnimeFromAssets(ctx)
+            Log.d(TAG, "✅ Loaded ${animeList.size} anime from assets")
             
             // Simpan ke cache
-            if (animeList.isNotEmpty()) {
-                CacheManager.saveAnimeList(ctx, animeList)
-            }
+            SimpleCache.saveAnimeList(animeList)
             
+            return@withContext animeList
         } catch (e: Exception) {
-            println("❌ Error: ${e.message}")
+            Log.e(TAG, "❌ Error loading from assets: ${e.message}")
+            return@withContext emptyList()
+        }
+    }
+
+    // Download episodes dari GitHub berdasarkan judul anime
+    suspend fun downloadEpisodes(animeTitle: String, forceRefresh: Boolean = false): List<Episode> = withContext(Dispatchers.IO) {
+        val ctx = context ?: return@withContext emptyList()
+        
+        // Cek cache episode
+        if (!forceRefresh) {
+            val cached = SimpleCache.getEpisodesByTitle(animeTitle)
+            if (cached.isNotEmpty()) {
+                Log.d(TAG, "📦 Using cached episodes for $animeTitle")
+                return@withContext cached
+            }
         }
         
-        println("📊 Total anime loaded: ${animeList.size}")
-        return@withContext animeList.sortedBy { it.id }
+        // Konversi judul ke format nama file GitHub
+        val fileName = titleToFileName(animeTitle)
+        val urlString = "${GITHUB_RAW_URL}${fileName}"
+        
+        Log.d(TAG, "🌐 Downloading episodes from: $urlString")
+        
+        try {
+            val url = URL(urlString)
+            val connection = url.openConnection() as HttpURLConnection
+            connection.connectTimeout = 10000
+            connection.readTimeout = 10000
+            connection.setRequestProperty("User-Agent", "AnimeX-App")
+            
+            return@withContext if (connection.responseCode == 200) {
+                val xmlString = connection.inputStream.bufferedReader().use { it.readText() }
+                connection.disconnect()
+                
+                val episodes = parseEpisodesFromXml(xmlString, animeTitle)
+                Log.d(TAG, "✅ Downloaded ${episodes.size} episodes for $animeTitle")
+                
+                // Simpan ke cache
+                if (episodes.isNotEmpty()) {
+                    SimpleCache.saveEpisodesByTitle(animeTitle, episodes)
+                }
+                
+                episodes
+            } else {
+                Log.w(TAG, "⚠️ HTTP ${connection.responseCode} for $fileName")
+                connection.disconnect()
+                emptyList()
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "❌ Error downloading episodes: ${e.message}")
+            emptyList()
+        }
     }
     
-    private fun parseAnimeFromXml(xmlString: String, animeId: Int): Anime? {
-        return try {
+    // Konversi judul ke format nama file GitHub
+    private fun titleToFileName(title: String): String {
+        // Format: anime_[Title].xml
+        // Contoh: "One Piece" -> "anime_One_Piece.xml"
+        //         "[Oshi no Ko]" -> "anime_Oshi_no_Ko.xml"
+        
+        // Hapus karakter khusus dan ganti spasi dengan underscore
+        val safeTitle = title
+            .replace("[", "")
+            .replace("]", "")
+            .replace(":", "")
+            .replace("'", "")
+            .replace(".", "")
+            .trim()
+            .replace(" ", "_")
+        
+        return "anime_${safeTitle}.xml"
+    }
+    
+    // Parse XML episode
+    private fun parseEpisodesFromXml(xmlString: String, animeTitle: String): List<Episode> {
+        val episodeList = mutableListOf<Episode>()
+        
+        try {
             val factory = XmlPullParserFactory.newInstance()
             val parser = factory.newPullParser()
             parser.setInput(StringReader(xmlString))
-            
+
             var eventType = parser.eventType
-            var title = ""
-            var description = ""
-            var genre = ""
-            var episodeCount = ""
-            var thumbnailUrl = ""
-            var status = ""
-            var rating = 0.0
-            var releaseYear = 0
-            var studio = ""
-            var foundAnime = false
-            
+            var epsId = 0
+            var videoUrl = ""
+            var episodeTitle = ""
+            var inEpisode = false
+
             while (eventType != XmlPullParser.END_DOCUMENT) {
-                if (eventType == XmlPullParser.START_TAG) {
-                    when (parser.name) {
-                        "anime" -> foundAnime = true
-                        "animetitle" -> if (foundAnime) title = parser.nextText() ?: ""
-                        "description" -> if (foundAnime) description = parser.nextText() ?: ""
-                        "genre" -> if (foundAnime) genre = parser.nextText() ?: ""
-                        "episode_count" -> if (foundAnime) episodeCount = parser.nextText() ?: ""
-                        "thumbnail_url" -> if (foundAnime) {
-                            thumbnailUrl = parser.nextText() ?: ""
-                            thumbnailUrl = thumbnailUrl.trim()
-                        }
-                        "status" -> if (foundAnime) status = parser.nextText() ?: ""
-                        "rating" -> if (foundAnime) {
-                            try {
-                                rating = parser.nextText().toDouble()
-                            } catch (e: Exception) {
-                                rating = 0.0
+                when (eventType) {
+                    XmlPullParser.START_TAG -> {
+                        when (parser.name) {
+                            "episode" -> {
+                                inEpisode = true
+                                epsId = 0
+                                videoUrl = ""
+                                episodeTitle = ""
+                            }
+                            "eps_id" -> if (inEpisode) {
+                                try { epsId = parser.nextText().toInt() } catch (e: Exception) { epsId = 0 }
+                            }
+                            "video_url" -> if (inEpisode) {
+                                videoUrl = parser.nextText() ?: ""
+                                videoUrl = videoUrl.trim()
+                            }
+                            "epstitle" -> if (inEpisode) {
+                                episodeTitle = parser.nextText() ?: ""
                             }
                         }
-                        "release_year" -> if (foundAnime) {
-                            try {
-                                releaseYear = parser.nextText().toInt()
-                            } catch (e: Exception) {
-                                releaseYear = 0
-                            }
+                    }
+                    XmlPullParser.END_TAG -> {
+                        if (parser.name == "episode" && inEpisode && epsId > 0 && videoUrl.isNotEmpty()) {
+                            val finalTitle = if (episodeTitle.isNotEmpty()) episodeTitle else "Episode $epsId"
+                            episodeList.add(
+                                Episode(
+                                    id = epsId,
+                                    animeId = 0, // ID tidak terlalu penting
+                                    number = epsId,
+                                    title = finalTitle,
+                                    videoUrl = videoUrl
+                                )
+                            )
+                            inEpisode = false
                         }
-                        "studio" -> if (foundAnime) studio = parser.nextText() ?: ""
                     }
                 }
                 eventType = parser.next()
             }
-            
-            if (title.isNotEmpty()) {
-                Anime(
-                    id = animeId,
-                    title = title,
-                    description = description,
-                    genre = genre,
-                    episodeCount = episodeCount,
-                    thumbnailUrl = thumbnailUrl,
-                    videoUrl = "",
-                    status = status,
-                    rating = rating,
-                    releaseYear = releaseYear,
-                    studio = studio
-                )
-            } else {
-                null
-            }
         } catch (e: Exception) {
-            null
-        }
-    }
-
-    suspend fun fetchEpisodes(animeId: Int, forceRefresh: Boolean = false): List<Episode> = withContext(Dispatchers.IO) {
-        val ctx = context ?: throw IllegalStateException("NetworkService not initialized")
-        
-        // Coba load dari cache dulu (kecuali force refresh)
-        if (!forceRefresh) {
-            val cached = CacheManager.loadEpisodes(ctx, animeId)
-            if (cached != null) {
-                println("📦 Using cached episodes for anime $animeId")
-                return@withContext cached
-            }
+            Log.e(TAG, "Error parsing episodes XML: ${e.message}")
         }
         
-        println("🌐 Fetching episodes for anime $animeId from GitHub...")
-        val episodeList = mutableListOf<Episode>()
-        
-        try {
-            val url = URL("${GITHUB_BASE_URL}animelist_${animeId}.xml")
-            val connection = url.openConnection() as HttpURLConnection
-            connection.connectTimeout = 5000
-            connection.readTimeout = 5000
-            connection.requestMethod = "GET"
-
-            if (connection.responseCode == 200) {
-                val xmlString = connection.inputStream.bufferedReader().use { it.readText() }
-                
-                val factory = XmlPullParserFactory.newInstance()
-                val parser = factory.newPullParser()
-                parser.setInput(StringReader(xmlString))
-
-                var eventType = parser.eventType
-                var epsId = 0
-                var videoUrl = ""
-                var episodeTitle = ""
-                var inEpisode = false
-
-                while (eventType != XmlPullParser.END_DOCUMENT) {
-                    when (eventType) {
-                        XmlPullParser.START_TAG -> {
-                            when (parser.name) {
-                                "episode" -> {
-                                    inEpisode = true
-                                    epsId = 0
-                                    videoUrl = ""
-                                    episodeTitle = ""
-                                }
-                                "eps_id" -> if (inEpisode) {
-                                    try {
-                                        epsId = parser.nextText().toInt()
-                                    } catch (e: Exception) {
-                                        epsId = 0
-                                    }
-                                }
-                                "video_url" -> if (inEpisode) {
-                                    videoUrl = parser.nextText() ?: ""
-                                    videoUrl = videoUrl.replace("<", "").replace(">", "").trim()
-                                }
-                                "epstitle" -> if (inEpisode) {
-                                    episodeTitle = parser.nextText() ?: ""
-                                }
-                            }
-                        }
-                        XmlPullParser.END_TAG -> {
-                            if (parser.name == "episode" && inEpisode && epsId > 0 && videoUrl.isNotEmpty()) {
-                                val finalTitle = if (episodeTitle.isNotEmpty()) {
-                                    episodeTitle
-                                } else {
-                                    "Episode $epsId"
-                                }
-                                
-                                episodeList.add(
-                                    Episode(
-                                        id = epsId,
-                                        animeId = animeId,
-                                        number = epsId,
-                                        title = finalTitle,
-                                        duration = "24:30",
-                                        videoUrl = videoUrl,
-                                        thumbnailUrl = ""
-                                    )
-                                )
-                                inEpisode = false
-                            }
-                        }
-                    }
-                    eventType = parser.next()
-                }
-                
-                // Simpan ke cache
-                if (episodeList.isNotEmpty()) {
-                    CacheManager.saveEpisodes(ctx, animeId, episodeList)
-                }
-                
-                println("✅ Loaded ${episodeList.size} episodes for anime ID $animeId")
-            }
-            connection.disconnect()
-        } catch (e: Exception) {
-            println("❌ Error loading episodes for anime ID $animeId: ${e.message}")
-        }
-        
-        return@withContext episodeList.sortedBy { it.number }
+        return episodeList.sortedBy { it.number }
     }
 }

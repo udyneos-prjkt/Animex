@@ -50,17 +50,15 @@ class SectionAdapter(
             tvSectionTitle.text = section.title
             
             // Setup Grid RecyclerView dengan 3 kolom
-            val gridLayoutManager = GridLayoutManager(itemView.context, 3)
-            rvGrid.layoutManager = gridLayoutManager
+            rvGrid.layoutManager = GridLayoutManager(itemView.context, 3)
             
-            // Batasi hanya 9 item (3 baris x 3 kolom)
+            // Tampilkan 9 item (3 baris x 3 kolom)
             val displayList = section.animeList.take(9)
             
             val animeAdapter = AnimeAdapter(onAnimeClick)
             rvGrid.adapter = animeAdapter
             animeAdapter.submitList(displayList)
 
-            // View All button dengan arrow
             btnViewAll.setOnClickListener {
                 onViewAllClick(section.viewAllTag)
             }

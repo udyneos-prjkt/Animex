@@ -2,20 +2,21 @@ package com.udyneos.animex
 
 import android.content.Intent
 import android.os.Bundle
-import android.view.Menu
-import android.view.MenuItem
 import android.view.View
+import android.widget.FrameLayout
+import android.widget.LinearLayout
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
+import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
-import com.google.android.material.progressindicator.LinearProgressIndicator
-import com.google.android.material.button.MaterialButton
+import androidx.swiperefreshlayout.widget.SwipeRefreshLayout
+import com.google.android.material.bottomnavigation.BottomNavigationView
+import com.google.android.material.progressindicator.CircularProgressIndicator
 import com.udyneos.animex.adapter.SectionAdapter
 import com.udyneos.animex.model.Anime
 import com.udyneos.animex.network.NetworkService
-import com.udyneos.animex.utils.CacheManager
-import kotlinx.coroutines.CoroutineScope
+import com.udyneos.animex.utils.SimpleCache
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -23,86 +24,54 @@ import kotlinx.coroutines.withContext
 class MainActivity : AppCompatActivity() {
 
     private lateinit var recyclerView: RecyclerView
-    private lateinit var progressIndicator: LinearProgressIndicator
-    private lateinit var btnRefresh: MaterialButton
+    private lateinit var swipeRefresh: SwipeRefreshLayout
+    private lateinit var bottomNavigation: BottomNavigationView
+    private lateinit var loadingContainer: FrameLayout
+    private lateinit var progressIndicator: CircularProgressIndicator
+    private lateinit var contentContainer: LinearLayout
     private lateinit var sectionAdapter: SectionAdapter
+    
     private var allAnime = listOf<Anime>()
-    private var backPressedTime = 0L
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
         recyclerView = findViewById(R.id.recyclerView)
+        swipeRefresh = findViewById(R.id.swipeRefresh)
+        bottomNavigation = findViewById(R.id.bottomNavigation)
+        loadingContainer = findViewById(R.id.loadingContainer)
         progressIndicator = findViewById(R.id.progressIndicator)
-        btnRefresh = findViewById(R.id.btnRefresh)
+        contentContainer = findViewById(R.id.contentContainer)
 
-        // Inisialisasi NetworkService dengan context
         NetworkService.init(this)
 
-        setupToolbar()
         setupRecyclerView()
-        setupRefreshButton()
-        
-        // Bersihkan cache expired
-        CoroutineScope(Dispatchers.IO).launch {
-            CacheManager.clearExpiredCache(this@MainActivity)
-        }
+        setupSwipeRefresh()
+        setupBottomNavigation()
         
         loadAnimeData()
-    }
-
-    override fun onCreateOptionsMenu(menu: Menu): Boolean {
-        menuInflater.inflate(R.menu.main_menu, menu)
-        return true
-    }
-
-    override fun onOptionsItemSelected(item: MenuItem): Boolean {
-        return when (item.itemId) {
-            R.id.action_refresh -> {
-                loadAnimeData(forceRefresh = true)
-                true
-            }
-            R.id.action_settings -> {
-                val intent = Intent(this, SettingsActivity::class.java)
-                startActivity(intent)
-                true
-            }
-            else -> super.onOptionsItemSelected(item)
-        }
-    }
-
-    private fun setupToolbar() {
-        val toolbar = findViewById<androidx.appcompat.widget.Toolbar>(R.id.toolbar)
-        setSupportActionBar(toolbar)
-        supportActionBar?.setDisplayShowTitleEnabled(false)
     }
 
     private fun setupRecyclerView() {
         sectionAdapter = SectionAdapter(
             onAnimeClick = { anime ->
-                val intent = Intent(this, AnimeDetailActivity::class.java)
-                intent.putExtra("anime_data", anime)
-                startActivity(intent)
+                startActivity(Intent(this, AnimeDetailActivity::class.java).apply {
+                    putExtra("anime_data", anime)
+                })
             },
             onViewAllClick = { tag ->
-                val filteredList = when(tag) {
-                    "new" -> allAnime.filter { it.releaseYear >= 2023 }
-                    "popular" -> allAnime.filter { it.rating >= 8.5 }
-                    "completed" -> allAnime.filter { it.status.equals("Completed", ignoreCase = true) }
-                    else -> allAnime
-                }
-                
-                val intent = Intent(this, AllAnimeActivity::class.java).apply {
-                    putParcelableArrayListExtra("anime_list", ArrayList(filteredList))
-                    putExtra("title", when(tag) {
-                        "new" -> "🔥 New Anime 2023+"
+                // TIDAK MENGIRIM SEMUA DATA VIA INTENT
+                // Cukup kirim judul saja, nanti AllAnimeActivity akan ambil dari cache
+                startActivity(Intent(this, AllAnimeActivity::class.java).apply {
+                    putExtra("title", when (tag) {
                         "popular" -> "⭐ Popular Anime"
+                        "new" -> "🔥 New Anime 2023+"
                         "completed" -> "✅ Completed Anime"
+                        "recommended" -> "🎯 Recommended For You"
                         else -> "📺 All Anime"
                     })
-                }
-                startActivity(intent)
+                })
             }
         )
 
@@ -110,81 +79,87 @@ class MainActivity : AppCompatActivity() {
         recyclerView.adapter = sectionAdapter
     }
 
-    private fun setupRefreshButton() {
-        btnRefresh.setOnClickListener {
+    private fun setupSwipeRefresh() {
+        swipeRefresh.setColorSchemeColors(getColor(R.color.monet_primary))
+        swipeRefresh.setOnRefreshListener {
             loadAnimeData(forceRefresh = true)
         }
     }
 
-    private fun showLoading(show: Boolean) {
-        if (show) {
-            progressIndicator.visibility = View.VISIBLE
-            recyclerView.visibility = View.GONE
-        } else {
-            progressIndicator.visibility = View.GONE
-            recyclerView.visibility = View.VISIBLE
+    private fun setupBottomNavigation() {
+        bottomNavigation.setOnItemSelectedListener { item ->
+            when (item.itemId) {
+                R.id.nav_home -> true
+                R.id.nav_animelist -> {
+                    startActivity(Intent(this, AllAnimeActivity::class.java).apply {
+                        putExtra("title", "📺 All Anime")
+                    })
+                    true
+                }
+                R.id.nav_settings -> {
+                    startActivity(Intent(this, SettingsActivity::class.java))
+                    true
+                }
+                R.id.nav_about -> {
+                    startActivity(Intent(this, AboutActivity::class.java))
+                    true
+                }
+                else -> false
+            }
         }
     }
 
     private fun loadAnimeData(forceRefresh: Boolean = false) {
         showLoading(true)
-        if (forceRefresh) {
-            Toast.makeText(this, "Refreshing data from GitHub...", Toast.LENGTH_SHORT).show()
-        }
-
-        CoroutineScope(Dispatchers.IO).launch {
+        
+        lifecycleScope.launch {
             try {
-                val animeList = NetworkService.fetchAnimeList(forceRefresh)
-                allAnime = animeList.sortedByDescending { it.rating }
-
-                withContext(Dispatchers.Main) {
-                    showLoading(false)
-                    setupSections(animeList)
-                    
-                    val source = if (forceRefresh) "GitHub" else "cache"
-                    Toast.makeText(this@MainActivity, "Loaded ${animeList.size} anime from $source", Toast.LENGTH_SHORT).show()
+                val animeList = withContext(Dispatchers.IO) {
+                    NetworkService.loadAnimeList(forceRefresh)
                 }
+                
+                allAnime = animeList
+                setupSections(animeList)
+                showLoading(false)
+                swipeRefresh.isRefreshing = false
+                
+                val source = if (forceRefresh) "GitHub" else "Cache"
+                Toast.makeText(this@MainActivity, "Loaded ${animeList.size} anime from $source", Toast.LENGTH_SHORT).show()
+                
             } catch (e: Exception) {
-                withContext(Dispatchers.Main) {
-                    showLoading(false)
-                    Toast.makeText(this@MainActivity, "Error: ${e.message}", Toast.LENGTH_LONG).show()
-                }
+                showLoading(false)
+                swipeRefresh.isRefreshing = false
+                Toast.makeText(this@MainActivity, "Error: ${e.message}", Toast.LENGTH_LONG).show()
             }
         }
     }
 
     private fun setupSections(animeList: List<Anime>) {
-        val newAnime = animeList
-            .filter { it.releaseYear >= 2023 }
-            .sortedByDescending { it.rating }
-            .take(9)
-
-        val popularAnime = animeList
-            .filter { it.rating >= 8.5 }
-            .sortedByDescending { it.rating }
-            .take(9)
-
-        val completedAnime = animeList
-            .filter { it.status.equals("Completed", ignoreCase = true) }
-            .shuffled()
-            .take(9)
-
+        if (animeList.isEmpty()) {
+            sectionAdapter.submitSections(emptyList())
+            return
+        }
+        
         val sections = listOf(
-            SectionAdapter.Section("🔥 New Anime 2023+", newAnime, "new"),
-            SectionAdapter.Section("⭐ Popular Anime", popularAnime, "popular"),
-            SectionAdapter.Section("✅ Completed Anime", completedAnime, "completed")
+            SectionAdapter.Section("⭐ Popular Anime", 
+                animeList.filter { it.rating >= 8.5 }.take(9), "popular"),
+            SectionAdapter.Section("🔥 New Anime 2023+", 
+                animeList.filter { it.releaseYear >= 2023 }.take(9), "new"),
+            SectionAdapter.Section("✅ Completed Anime", 
+                animeList.filter { it.status.equals("Completed", ignoreCase = true) }.take(9), "completed"),
+            SectionAdapter.Section("🎯 Recommended For You", 
+                animeList.shuffled().take(9), "recommended")
         )
-
         sectionAdapter.submitSections(sections)
     }
 
-    override fun onBackPressed() {
-        if (backPressedTime + 2000 > System.currentTimeMillis()) {
-            super.onBackPressed()
-            finishAffinity()
+    private fun showLoading(show: Boolean) {
+        if (show) {
+            loadingContainer.visibility = View.VISIBLE
+            contentContainer.visibility = View.GONE
         } else {
-            Toast.makeText(this, "Tekan sekali lagi untuk keluar", Toast.LENGTH_SHORT).show()
-            backPressedTime = System.currentTimeMillis()
+            loadingContainer.visibility = View.GONE
+            contentContainer.visibility = View.VISIBLE
         }
     }
 }

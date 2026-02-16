@@ -1,62 +1,40 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <style name="Theme.AnimeX" parent="Theme.Material3.DayNight.NoActionBar">
-        <!-- Dark theme colors -->
-        <item name="colorPrimary">@color/dark_primary</item>
-        <item name="colorOnPrimary">@color/text_primary</item>
-        <item name="colorPrimaryContainer">@color/dark_primary_variant</item>
-        <item name="colorOnPrimaryContainer">@color/text_secondary</item>
-        
-        <item name="colorSecondary">@color/dark_secondary</item>
-        <item name="colorOnSecondary">@color/text_primary</item>
-        <item name="colorSecondaryContainer">@color/dark_secondary_variant</item>
-        <item name="colorOnSecondaryContainer">@color/text_secondary</item>
-        
-        <item name="colorTertiary">@color/accent_purple</item>
-        <item name="colorOnTertiary">@color/text_primary</item>
-        
-        <!-- Background & Surface -->
-        <item name="android:colorBackground">@color/dark_background</item>
-        <item name="colorSurface">@color/dark_surface</item>
-        <item name="colorSurfaceVariant">@color/dark_card</item>
-        <item name="colorOnSurface">@color/text_primary</item>
-        <item name="colorOnSurfaceVariant">@color/text_secondary</item>
+    <style name="Theme.AnimeX" parent="Theme.MaterialComponents.DayNight.NoActionBar">
+        <!-- Monet colors -->
+        <item name="colorPrimary">@color/monet_primary</item>
+        <item name="colorOnPrimary">@color/monet_on_primary</item>
+        <item name="colorSecondary">@color/monet_secondary</item>
+        <item name="colorTertiary">@color/monet_tertiary</item>
+        <item name="android:colorBackground">@color/monet_background</item>
+        <item name="colorSurface">@color/monet_surface</item>
+        <item name="colorError">@color/monet_error</item>
         
         <!-- Status Bar -->
-        <item name="android:statusBarColor">@color/dark_primary_variant</item>
+        <item name="android:statusBarColor">@color/monet_background</item>
         <item name="android:windowLightStatusBar">false</item>
         
         <!-- Navigation Bar -->
-        <item name="android:navigationBarColor">@color/dark_background</item>
-        <item name="android:windowLightNavigationBar">false</item>
+        <item name="android:navigationBarColor">@color/monet_background</item>
         
-        <!-- Error Colors -->
-        <item name="colorError">@color/error</item>
-        <item name="colorOnError">@color/text_primary</item>
-        
-        <!-- Outline -->
-        <item name="colorOutline">@color/text_hint</item>
-        
-        <!-- Button Styles -->
+        <!-- Button Style -->
         <item name="materialButtonStyle">@style/Widget.AnimeX.Button</item>
     </style>
 
-    <!-- Dark Button Style -->
-    <style name="Widget.AnimeX.Button" parent="Widget.Material3.Button">
+    <style name="Widget.AnimeX.Button" parent="Widget.MaterialComponents.Button">
         <item name="cornerRadius">24dp</item>
         <item name="android:insetTop">0dp</item>
         <item name="android:insetBottom">0dp</item>
         <item name="android:textAllCaps">false</item>
-        <item name="backgroundTint">@color/dark_secondary</item>
-        <item name="rippleColor">@color/accent_purple</item>
+        <item name="backgroundTint">@color/monet_primary</item>
+        <item name="rippleColor">@color/monet_secondary</item>
     </style>
 
-    <!-- Dark Chip Style -->
-    <style name="Widget.AnimeX.Chip" parent="Widget.Material3.Chip.Assist">
-        <item name="chipBackgroundColor">@color/dark_secondary</item>
-        <item name="chipStrokeColor">@color/text_hint</item>
+    <style name="Widget.AnimeX.Chip" parent="Widget.MaterialComponents.Chip.Entry">
+        <item name="chipBackgroundColor">@color/card_elevated</item>
+        <item name="chipStrokeColor">@color/monet_outline</item>
         <item name="chipStrokeWidth">1dp</item>
         <item name="android:textColor">@color/text_primary</item>
-        <item name="cornerRadius">20dp</item>
+        <item name="chipCornerRadius">20dp</item>
     </style>
 </resources>

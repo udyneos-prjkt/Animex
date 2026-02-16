@@ -8,9 +8,9 @@ data class Episode(
     val animeId: Int,
     val number: Int,
     val title: String,
-    val duration: String,
+    val duration: String = "24:30",
     val videoUrl: String,
-    val thumbnailUrl: String
+    val thumbnailUrl: String = ""
 ) : Parcelable {
     constructor(parcel: Parcel) : this(
         parcel.readInt(),

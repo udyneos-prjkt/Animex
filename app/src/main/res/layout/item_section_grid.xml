@@ -5,7 +5,7 @@
     android:layout_height="wrap_content"
     android:orientation="vertical"
     android:paddingBottom="16dp"
-    android:background="@color/dark_background">
+    android:background="@color/monet_background">
 
     <!-- Section Header with Arrow Button -->
     <LinearLayout
@@ -25,8 +25,7 @@
             android:layout_weight="1"
             android:textColor="@color/text_primary"
             android:textSize="18sp"
-            android:textStyle="bold"
-            android:text="Section Title" />
+            android:textStyle="bold" />
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/btnViewAll"
@@ -35,12 +34,12 @@
             android:text="View All"
             android:textAllCaps="false"
             android:textSize="12sp"
-            android:textColor="@color/accent_purple"
-            style="@style/Widget.Material3.Button.TextButton"
+            android:textColor="@color/monet_primary"
+            style="@style/Widget.MaterialComponents.Button.TextButton"
             app:icon="@drawable/ic_arrow_forward"
             app:iconGravity="textEnd"
             app:iconSize="16dp"
-            app:iconTint="@color/accent_purple" />
+            app:iconTint="@color/monet_primary" />
     </LinearLayout>
 
     <!-- Grid RecyclerView - 3 columns -->

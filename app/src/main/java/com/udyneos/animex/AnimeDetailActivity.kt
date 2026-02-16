@@ -6,19 +6,17 @@ import android.widget.ImageView
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
+import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
-import com.bumptech.glide.load.engine.DiskCacheStrategy
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.progressindicator.CircularProgressIndicator
 import com.udyneos.animex.adapter.EpisodeAdapter
 import com.udyneos.animex.model.Anime
 import com.udyneos.animex.model.Episode
 import com.udyneos.animex.network.NetworkService
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
@@ -38,18 +36,35 @@ class AnimeDetailActivity : AppCompatActivity() {
     private lateinit var progressBar: CircularProgressIndicator
     private lateinit var rvEpisodes: RecyclerView
     private lateinit var episodeAdapter: EpisodeAdapter
+    
+    private var currentAnime: Anime? = null
     private var allEpisodes = listOf<Episode>()
     private var displayedEpisodes = mutableListOf<Episode>()
     private var currentPage = 0
-    private val pageSize = 50
-    private var currentAnime: Anime? = null
-    private var isLoading = false
+    private val pageSize = 30
     
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_anime_detail)
 
-        // Initialize views
+        initViews()
+        setupToolbar()
+
+        currentAnime = intent.getParcelableExtra("anime_data")
+        if (currentAnime == null) {
+            Toast.makeText(this, "Anime not found", Toast.LENGTH_SHORT).show()
+            finish()
+            return
+        }
+
+        supportActionBar?.title = currentAnime?.title
+        loadAnimeDetails()
+        setupEpisodeList()
+        loadEpisodes()
+        setupButtons()
+    }
+    
+    private fun initViews() {
         ivThumbnailBackground = findViewById(R.id.ivThumbnailBackground)
         tvTitle = findViewById(R.id.tvTitle)
         tvRating = findViewById(R.id.tvRating)
@@ -63,38 +78,13 @@ class AnimeDetailActivity : AppCompatActivity() {
         btnLoadMore = findViewById(R.id.btnLoadMore)
         progressBar = findViewById(R.id.progressBar)
         rvEpisodes = findViewById(R.id.rvEpisodes)
-
-        // Setup toolbar dengan back button ke MainActivity
+    }
+    
+    private fun setupToolbar() {
         val toolbar = findViewById<androidx.appcompat.widget.Toolbar>(R.id.toolbar)
         setSupportActionBar(toolbar)
         supportActionBar?.setDisplayHomeAsUpEnabled(true)
-        supportActionBar?.setDisplayShowHomeEnabled(true)
-        
-        toolbar.setNavigationOnClickListener {
-            finish()
-        }
-
-        // Get anime data
-        currentAnime = intent.getParcelableExtra("anime_data")
-
-        if (currentAnime == null) {
-            Toast.makeText(this, "Anime data not found", Toast.LENGTH_SHORT).show()
-            finish()
-            return
-        }
-
-        // Load anime details
-        loadAnimeDetails()
-        
-        // Setup RecyclerView untuk episode
-        setupEpisodeList()
-        
-        // Fetch semua episodes dari GitHub
-        fetchAllEpisodesFromGithub(currentAnime!!.id)
-
-        // Setup buttons
-        setupPlayButton()
-        setupLoadMoreButton()
+        toolbar.setNavigationOnClickListener { finish() }
     }
     
     private fun loadAnimeDetails() {
@@ -113,7 +103,6 @@ class AnimeDetailActivity : AppCompatActivity() {
                     .load(anime.thumbnailUrl)
                     .placeholder(R.drawable.placeholder_anime)
                     .error(R.drawable.error_anime)
-                    .diskCacheStrategy(DiskCacheStrategy.ALL)
                     .centerCrop()
                     .into(ivThumbnailBackground)
             }
@@ -122,94 +111,67 @@ class AnimeDetailActivity : AppCompatActivity() {
     
     private fun setupEpisodeList() {
         episodeAdapter = EpisodeAdapter { episode ->
-            val intent = Intent(this, VideoPlayerActivity::class.java)
-            intent.putExtra("video_url", episode.videoUrl)
-            intent.putExtra("episode_title", episode.title)
-            intent.putExtra("anime_title", currentAnime?.title)
-            startActivity(intent)
+            startActivity(Intent(this, VideoPlayerActivity::class.java).apply {
+                putExtra("video_url", episode.videoUrl)
+                putExtra("episode_title", episode.title)
+                putExtra("anime_title", currentAnime?.title)
+            })
         }
         
         rvEpisodes.layoutManager = LinearLayoutManager(this)
         rvEpisodes.adapter = episodeAdapter
     }
     
-    private fun fetchAllEpisodesFromGithub(animeId: Int) {
+    private fun loadEpisodes() {
         showLoading(true)
         
-        CoroutineScope(Dispatchers.IO).launch {
+        lifecycleScope.launch {
             try {
-                // Fetch episodes dari NetworkService
-                val episodes = NetworkService.fetchEpisodes(animeId)
-                allEpisodes = episodes
+                val episodes = withContext(Dispatchers.IO) {
+                    currentAnime?.let { 
+                        NetworkService.downloadEpisodes(it.title, forceRefresh = false) 
+                    } ?: emptyList()
+                }
                 
-                withContext(Dispatchers.Main) {
+                allEpisodes = episodes
+                if (episodes.isNotEmpty()) {
+                    loadNextPage()
+                } else {
                     showLoading(false)
-                    
-                    if (episodes.isNotEmpty()) {
-                        // Load page pertama
-                        loadNextPage()
-                        updateEpisodeCount()
-                    } else {
-                        Toast.makeText(this@AnimeDetailActivity, "No episodes found", Toast.LENGTH_SHORT).show()
-                        btnLoadMore.visibility = android.view.View.GONE
-                    }
+                    btnLoadMore.visibility = android.view.View.GONE
+                    Toast.makeText(this@AnimeDetailActivity, "No episodes found", Toast.LENGTH_SHORT).show()
                 }
             } catch (e: Exception) {
-                withContext(Dispatchers.Main) {
-                    showLoading(false)
-                    Toast.makeText(this@AnimeDetailActivity, "Error loading episodes", Toast.LENGTH_SHORT).show()
-                    e.printStackTrace()
-                }
+                showLoading(false)
+                Toast.makeText(this@AnimeDetailActivity, "Error: ${e.message}", Toast.LENGTH_SHORT).show()
             }
         }
     }
     
     private fun loadNextPage() {
-        if (isLoading) return
-        
-        isLoading = true
-        
         val start = currentPage * pageSize
         val end = minOf(start + pageSize, allEpisodes.size)
         
         if (start >= allEpisodes.size) {
-            // Sudah mencapai akhir
             btnLoadMore.visibility = android.view.View.GONE
-            isLoading = false
+            showLoading(false)
             return
         }
         
-        // Simulasi loading untuk UX yang lebih baik
-        CoroutineScope(Dispatchers.Main).launch {
-            btnLoadMore.isEnabled = false
-            btnLoadMore.text = "Loading..."
-            
-            // Delay kecil untuk UX
-            delay(500)
-            
-            val nextPageEpisodes = allEpisodes.subList(start, end)
-            displayedEpisodes.addAll(nextPageEpisodes)
-            episodeAdapter.submitList(displayedEpisodes.toList())
-            
-            currentPage++
-            isLoading = false
-            
-            // Update button
-            btnLoadMore.isEnabled = true
-            val remainingEpisodes = allEpisodes.size - (currentPage * pageSize)
-            
-            if (remainingEpisodes > 0) {
-                val nextBatchSize = minOf(remainingEpisodes, pageSize)
-                btnLoadMore.text = "Load $nextBatchSize More Episodes ($remainingEpisodes left)"
-            } else {
-                btnLoadMore.visibility = android.view.View.GONE
-            }
+        val nextPage = allEpisodes.subList(start, end)
+        displayedEpisodes.addAll(nextPage)
+        episodeAdapter.submitList(displayedEpisodes.toList())
+        
+        currentPage++
+        showLoading(false)
+        
+        val remaining = allEpisodes.size - (currentPage * pageSize)
+        if (remaining > 0) {
+            btnLoadMore.visibility = android.view.View.VISIBLE
+            btnLoadMore.text = "Load ${minOf(remaining, pageSize)} More ($remaining left)"
+        } else {
+            btnLoadMore.visibility = android.view.View.GONE
         }
-    }
-    
-    private fun updateEpisodeCount() {
-        val totalEpisodes = allEpisodes.size
-        tvEpisodeCount.text = "$totalEpisodes Episodes"
     }
     
     private fun showLoading(show: Boolean) {
@@ -220,41 +182,30 @@ class AnimeDetailActivity : AppCompatActivity() {
         } else {
             progressBar.visibility = android.view.View.GONE
             rvEpisodes.visibility = android.view.View.VISIBLE
-            
-            // Tampilkan button load more jika masih ada episode
-            if (allEpisodes.size > pageSize) {
-                btnLoadMore.visibility = android.view.View.VISIBLE
-                val remainingEpisodes = allEpisodes.size
-                btnLoadMore.text = "Load ${minOf(remainingEpisodes, pageSize)} More Episodes ($remainingEpisodes left)"
-            }
         }
     }
     
-    private fun setupPlayButton() {
+    private fun setupButtons() {
         btnPlay.setOnClickListener {
             if (displayedEpisodes.isNotEmpty()) {
                 val firstEpisode = displayedEpisodes[0]
-                val intent = Intent(this, VideoPlayerActivity::class.java)
-                intent.putExtra("video_url", firstEpisode.videoUrl)
-                intent.putExtra("episode_title", firstEpisode.title)
-                intent.putExtra("anime_title", currentAnime?.title)
-                startActivity(intent)
+                startActivity(Intent(this, VideoPlayerActivity::class.java).apply {
+                    putExtra("video_url", firstEpisode.videoUrl)
+                    putExtra("episode_title", firstEpisode.title)
+                    putExtra("anime_title", currentAnime?.title)
+                })
             } else if (allEpisodes.isNotEmpty()) {
                 val firstEpisode = allEpisodes[0]
-                val intent = Intent(this, VideoPlayerActivity::class.java)
-                intent.putExtra("video_url", firstEpisode.videoUrl)
-                intent.putExtra("episode_title", firstEpisode.title)
-                intent.putExtra("anime_title", currentAnime?.title)
-                startActivity(intent)
+                startActivity(Intent(this, VideoPlayerActivity::class.java).apply {
+                    putExtra("video_url", firstEpisode.videoUrl)
+                    putExtra("episode_title", firstEpisode.title)
+                    putExtra("anime_title", currentAnime?.title)
+                })
             } else {
-                Toast.makeText(this, "No episodes available", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, "No episodes", Toast.LENGTH_SHORT).show()
             }
         }
-    }
-    
-    private fun setupLoadMoreButton() {
-        btnLoadMore.setOnClickListener {
-            loadNextPage()
-        }
+        
+        btnLoadMore.setOnClickListener { loadNextPage() }
     }
 }

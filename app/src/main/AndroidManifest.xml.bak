@@ -40,5 +40,7 @@
             android:configChanges="orientation|screenSize"
             android:screenOrientation="sensor" />
             
+        <activity android:name=".AllAnimeActivity" android:exported="false" android:screenOrientation="portrait" />
+        <activity android:name=".SettingsActivity" android:exported="false" android:screenOrientation="portrait" />
     </application>
 </manifest>

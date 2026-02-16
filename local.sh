@@ -1,1 +1,2 @@
-./gradlew clean assembledebug
+./gradlew clean
+./gradlew assembledebug

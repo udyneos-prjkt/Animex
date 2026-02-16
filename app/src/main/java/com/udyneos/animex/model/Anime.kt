@@ -10,7 +10,7 @@ data class Anime(
     val genre: String,
     val episodeCount: String,
     val thumbnailUrl: String,
-    val videoUrl: String,
+    val videoUrl: String = "",
     val status: String,
     val rating: Double,
     val releaseYear: Int,
